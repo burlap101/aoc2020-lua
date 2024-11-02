@@ -1,4 +1,7 @@
+local M = {}
+
 local function inspect_table(tbl, indent)
+	print(tbl)
 	if indent == nil then
 		indent = 0
 	end
@@ -16,10 +19,7 @@ local function inspect_table(tbl, indent)
 	end
 	return result .. ends .. "}"
 end
+M.inspect_table = inspect_table
 
-Utils = {
-	inspect_table = inspect_table
-}
-
-return	Utils
+return	M
 
