@@ -1,3 +1,23 @@
+local M = {}
+
+---Takes a filepath and returns its contents per line
+---@param filename string
+---@return table
+local function ingest(filename)
+	local f = assert(io.open(filename, "r"))
+	local lines = {}
+	for l in f:lines() do
+		table.insert(lines, l)
+	end
+	f:close()
+	return lines
+end
+M.ingest = ingest
+
+---Creates pretty representation of table
+---@param tbl table
+---@param indent integer
+---@return string
 local function inspect_table(tbl, indent)
 	if indent == nil then
 		indent = 0
@@ -16,10 +36,7 @@ local function inspect_table(tbl, indent)
 	end
 	return result .. ends .. "}"
 end
+M.inspect_table = inspect_table
 
-Utils = {
-	inspect_table = inspect_table
-}
-
-return Utils
+return M
 
