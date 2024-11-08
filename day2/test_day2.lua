@@ -1,5 +1,5 @@
 local lu = require "luaunit"
-local lib = require "lib"
+local lib = require "day3.lib"
 
 function TestSplitline()
 	local input = "1-3 a: aaa"

@@ -1,4 +1,4 @@
-local lib = require "lib"
+local lib = require "day3.lib"
 
 local p1, p2 = lib.valid_count(arg[1])
 print("Part1:", p1)

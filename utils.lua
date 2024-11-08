@@ -1,5 +1,18 @@
 local M = {}
 
+---Replaces non space whitespace with space, multiple
+---spaces with a single space and removes spaces from
+---ends
+---@param s string
+---@return string
+local function trim(s)
+	local doubles = string.gsub(s, "%s+", " ")
+	local ends = string.gsub(doubles, "^ ", "")
+	local starts = string.gsub(ends, " $", "")
+	return starts
+end
+M.trim = trim
+
 ---Takes a filepath and returns its contents per line
 ---@param filename string
 ---@return table
