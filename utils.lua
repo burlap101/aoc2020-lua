@@ -1,4 +1,5 @@
 local M = {}
+local lu = require "luaunit"
 
 ---Replaces non space whitespace with space, multiple
 ---spaces with a single space and removes spaces from
@@ -12,6 +13,30 @@ local function trim(s)
 	return starts
 end
 M.trim = trim
+
+---Returns new table of values from arr
+---between and including indexes [start, finish]
+---@generic T 
+---@param arr T[]
+---@param start integer
+---@param finish integer?
+---@return T[]
+local function slice(arr, start, finish)
+	local result = {}
+	local fin = finish or #arr
+	if not fin then
+		error("arr length is", #arr)
+	end
+	if fin < start then
+		error("start must be smaller or equal to finish")
+	end
+	for i=start,fin do
+		table.insert(result, arr[i])
+	end
+	return result
+end
+M.slice = slice
+
 
 ---Takes a filepath and returns its contents per line
 ---@param filename string
@@ -50,6 +75,63 @@ local function inspect_table(tbl, indent)
 	return result .. ends .. "}"
 end
 M.inspect_table = inspect_table
+
+---Takes an array and transfers all values 
+---to the keys of new table
+---@generic T 
+---@param arr T
+---@return table<T, true>
+local function arrayToSet(arr)
+	local result = {}
+	for _, v in ipairs(arr) do
+		result[v] = true
+	end
+	return result
+end
+M.arrayToSet = arrayToSet
+
+
+---Takes two lists and returns a new
+---one with the t1 and t2 joined
+---@param t1 any
+---@param t2 any
+---@return table
+local function joinArrays(t1, t2)
+	local result = {table.unpack(t1)}
+	for _, v in ipairs(t2) do
+		table.insert(result, v)
+	end
+	return result
+end
+M.joinArrays = joinArrays
+
+
+---Takes any table and attempts to use its
+---keys to create an array. The values of the 
+---original table are disregarded.
+---@generic T
+---@param t table<T, any>
+---@return T[]
+local function keysToArray(t)
+	local result = {}
+	for k in pairs(t) do
+		table.insert(result, k)
+	end
+	return result
+end
+M.keysToArray = keysToArray
+
+---Sum array elements
+---@param arr number[]
+---@return number
+local function sumArray(arr)
+	local result = 0
+	for _, v in ipairs(arr) do
+		result = result + v
+	end
+	return result
+end
+M.sumArray = sumArray
 
 return M
 
