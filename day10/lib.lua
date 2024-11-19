@@ -24,28 +24,34 @@ M.countDiffs = countDiffs
 
 
 ---Counts the combinations possible for 
----connecting device
+---connecting device. Utilises memoization
+---to complete the calc.
 ---@param ints integer[]
 ---@return integer
 local function countCombos(ints)
-	local total = 0
-	local target = ints[#ints]
+	---@type {[integer]: integer}
+	local results = {}
 	local function traverse(loc)
-		if ints[loc] == target then
-			total = total + 1
-			return
+		local total = 0
+		if results[loc] then
+			return results[loc]
+		end
+		if loc == #ints then
+			results[loc] = 1
+			return 1
 		end
 		for i=loc+1,#ints do
 			local diff = ints[i] - ints[loc]
 			if diff <= 3 then
-				traverse(i)
+				total = total + traverse(i)
 			else
 				break
 			end
 		end
+		results[loc] = total
+		return total
 	end
-	traverse(1)
-	return total
+	return traverse(1)
 end
 M.countCombos = countCombos
 
@@ -62,7 +68,6 @@ local function part1(filename)
 	table.sort(ints)
 	table.insert(ints, ints[#ints] + 3)
 	local counts = countDiffs(ints)
-	print(lu.prettystr(counts))
 	return counts[1] * counts[3]
 end
 M.part1 = part1
