@@ -39,4 +39,8 @@ function TestPart1()
 	lu.assertEquals(lib.part1("day12/test.txt"), 25)
 end
 
+function TestPart2()
+	lu.assertEquals(lib.part2("day12/test.txt"), 286)
+end
+
 os.exit(lu.LuaUnit.run())

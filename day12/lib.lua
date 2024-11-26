@@ -13,7 +13,10 @@ local direction = {
 ---@class Ship
 ---@field facing direction
 ---@field northing integer
----@field easintg integer
+---@field easting integer
+---@field rotate function(string, integer)
+---@field moveForward function(integer)
+---@field makeMove function(string)
 local Ship = {}
 M.Ship = Ship
 
@@ -76,6 +79,62 @@ function Ship:makeMove(line)
 	end
 end
 
+---@class Waypoint: Ship
+---@field northing integer
+---@field easting integer
+---@field ship Ship
+local Waypoint = setmetatable({}, {__index=Ship})
+
+---Constructor for the waypoint
+---@return table|Waypoint
+function Waypoint:new()
+	local o = setmetatable({}, {__index=self})
+	o.northing = 1
+	o.easting = 10
+	o.ship = Ship:new()
+	return o
+end
+
+---Moves the ship towards the waypoint so many times
+---@param value integer
+function Waypoint:moveForward(value)
+	local ship = self.ship
+	ship.easting = ship.easting + value * self.easting
+	ship.northing = ship.northing + value * self.northing
+end
+
+---Rotates the waypoint around the ship
+---@param dir string
+---@param value integer
+function Waypoint:rotate(dir, value)
+	local facing = 0
+	if dir == "L" then
+		facing = (facing - value) % 360
+		if facing < 0 then
+			facing = facing + 360
+		end
+	elseif dir == "R" then
+		facing = (facing + value) % 360
+		if facing > 360 then
+			facing = facing - 360
+		end
+	end
+	-- Set the relative position of the waypoint
+	local n = self.northing
+	local e = self.easting
+	if facing == direction.E then
+		self.northing = -e
+		self.easting = n
+	elseif facing == direction.S then
+		self.northing = -n
+		self.easting = -e
+	elseif facing == direction.W then
+		self.northing = e
+		self.easting = -n
+	end
+end
+
+
 local function part1(filename)
 	local lines = utils.ingest(filename)
 	local ship = Ship:new()
@@ -85,5 +144,16 @@ local function part1(filename)
 	return math.abs(ship.easting) + math.abs(ship.northing)
 end
 M.part1 = part1
+
+local function part2(filename)
+	local lines = utils.ingest(filename)
+	local waypoint = Waypoint:new()
+	for _, line in ipairs(lines) do
+		waypoint:makeMove(line)
+	end
+	local ship = waypoint.ship
+	return math.abs(ship.easting) + math.abs(ship.northing)
+end
+M.part2 = part2
 
 return M
