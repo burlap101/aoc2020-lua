@@ -37,6 +37,25 @@ local function slice(arr, start, finish)
 end
 M.slice = slice
 
+---Splits a string by separator
+---@param s string
+---@param sep string
+---@return string[]
+local function split(s, sep)
+	local temp = s
+	local result = {}
+	while string.find(temp, sep) do
+		local i, j = string.find(temp, sep)
+		if i and j then
+			table.insert(result, string.sub(temp, 1, i-1))
+			temp = string.sub(temp, j+1)
+		end
+	end
+	table.insert(result, temp)
+	return result
+end
+M.split = split
+
 
 ---Takes a filepath and returns its contents per line
 ---@param filename string
