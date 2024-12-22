@@ -328,7 +328,6 @@ function Space:cycle()
 	for _, cube in pairs(self.cubes) do
 		cube:assessState()
 	end
-	--for key, cube in pairs(self.cubes) do
 	for _, key in ipairs(utils.keysToArray(self.cubes)) do
 		local cube = self.cubes[key]
 		cube.active = cube.nextState
@@ -561,6 +560,51 @@ function Space4D:new(lines)
 	return o
 end
 
+---comment
+---@param cube Cube
+---@return {[string]: Cube}
+function Space4D:addNeighbours(cube)
+	local ncoords = getCoordinateNeighbours(cube.coords)
+	local newCubes = {}
+	for _, ncoord in ipairs(ncoords) do
+		local k = ncoord:asKey()
+		if not self.cubes[k] then
+			newCubes[k] = Cube:new(ncoord, false)
+			self.cubes[k] = newCubes[k]
+		end
+	end
+	-- Setup the neighbour relationship
+	for _, ncube in pairs(newCubes) do
+		local neighbours = getCoordinateNeighbours(ncube.coords)
+		for _, ncoord in ipairs(neighbours) do
+			local k = ncoord:asKey()
+			if self.cubes[k] then
+				self.cubes[k]:addNeighbour(ncube)
+			end
+		end
+	end
+	return newCubes
+end
+
+---Cycles through the states
+function Space4D:cycle()
+	local prevStates = self:snapshot()
+	---@type {[string]: boolean}
+	for _, cube in pairs(self.cubes) do
+		cube:assessState()
+	end
+	for _, key in ipairs(utils.keysToArray(self.cubes)) do
+		local cube = self.cubes[key]
+		cube.active = cube.nextState
+		if cube.active and prevStates[key] == false then
+			local ncs = self:addNeighbours(cube)
+			for _, nc in pairs(ncs) do
+				nc:assessState()
+			end
+		end
+	end
+end
+
 ---Extend the space dimensions on one axis
 ---@param direction Direction
 ---@return {[string]: Cube}
@@ -662,6 +706,7 @@ function Space4D:extend(direction)
 end
 ---Initialize neighbours for a 4D space
 function Space4D:initNeighbours()
+	-- Holds new cubes to be added to the space
 	local newCubes = {}
 	for coordKey, cube in pairs(self.cubes) do
 		local coords = Coordinates4D:fromKey(coordKey)
@@ -675,6 +720,7 @@ function Space4D:initNeighbours()
 			end
 		end
 	end
+	-- Add the new cubes to the space
 	for key, cube in pairs(newCubes) do
 		self.cubes[key] = cube
 		for _, ncoords in ipairs(getCoordinateNeighbours(cube.coords)) do

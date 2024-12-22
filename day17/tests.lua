@@ -53,6 +53,7 @@ end
 function TestSpace4DNew()
 	local lines = { "#" }
 	local space = lib.Space4D:new(lines)
+	lu.assertNotIsNil(space.cubes)
 	lu.assertEquals(#utils.keysToArray(space.cubes), 81)
 	for _, cube in pairs(space.cubes) do
 		lu.assertNotIsNil(cube.coords.max)
