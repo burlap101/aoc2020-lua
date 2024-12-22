@@ -3,6 +3,16 @@ local lu = require("luaunit")
 
 local M = {}
 
+---@class CoordRange
+---@field min integer
+---@field max integer
+
+---@class CoordinateRanges
+---@field x CoordRange
+---@field y CoordRange
+---@field z CoordRange
+---@field w CoordRange?
+
 ---@enum Direction
 local Direction = {
 	negx = -1,
@@ -23,11 +33,48 @@ M.Direction = Direction
 local Coordinates = {}
 M.Coordinates = Coordinates
 
+---Constructor for a Coordinates
+---@param coords Coordinates
+---@return Coordinates
+function Coordinates:new(coords)
+	local o = setmetatable({}, { __index = self })
+	o.x = coords.x
+	o.y = coords.y
+	o.z = coords.z
+	return o
+end
+
+---Serializes coordinates to a key
+---@return string
+function Coordinates:asKey()
+	return self.x .. "|" .. self.y .. "|" .. self.z
+end
+
+---Creates coordinates from key
+---@param key string
+---@return Coordinates
+function Coordinates:fromKey(key)
+	---@type integer[]
+	local coords = {}
+	for scoord in string.gmatch(key, "-?%d+") do
+		local coord = tonumber(scoord)
+		if not coord then
+			error("failed to parse number " .. scoord)
+		end
+		table.insert(coords, coord)
+	end
+	local o = setmetatable({}, { __index = self })
+	o.x = coords[1]
+	o.y = coords[2]
+	o.z = coords[3]
+	return o
+end
+
 ---Returns max value for each dimension
 ---@param coords Coordinates
 ---@return Coordinates
 function Coordinates:max(coords)
-	return {
+	return Coordinates:new {
 		x = math.max(self.x, coords.x),
 		y = math.max(self.y, coords.y),
 		z = math.max(self.z, coords.z),
@@ -38,7 +85,7 @@ end
 ---@param coords Coordinates
 ---@return Coordinates
 function Coordinates:min(coords)
-	return {
+	return Coordinates:new {
 		x = math.min(self.x, coords.x),
 		y = math.min(self.y, coords.y),
 		z = math.min(self.z, coords.z),
@@ -54,7 +101,7 @@ M.Coordinates4D = Coordinates4D
 ---@param coords Coordinates4D
 ---@return Coordinates4D
 function Coordinates4D:max(coords)
-	return {
+	return Coordinates4D:new {
 		x = math.max(self.x, coords.x),
 		y = math.max(self.y, coords.y),
 		z = math.max(self.z, coords.z),
@@ -66,7 +113,7 @@ end
 ---@param coords Coordinates4D
 ---@return Coordinates4D
 function Coordinates4D:min(coords)
-	return {
+	return Coordinates4D:new {
 		x = math.min(self.x, coords.x),
 		y = math.min(self.y, coords.y),
 		z = math.min(self.z, coords.z),
@@ -113,42 +160,6 @@ function Coordinates4D:fromKey(key)
 	return o
 end
 
----Constructor for a Coordinates
----@param coords Coordinates
----@return Coordinates
-function Coordinates:new(coords)
-	local o = setmetatable({}, { __index = self })
-	o.x = coords.x
-	o.y = coords.y
-	o.z = coords.z
-	return o
-end
-
----Serializes coordinates to a key
----@return string
-function Coordinates:asKey()
-	return self.x .. "|" .. self.y .. "|" .. self.z
-end
-
----Creates coordinates from key
----@param key string
----@return Coordinates
-function Coordinates:fromKey(key)
-	---@type integer[]
-	local coords = {}
-	for scoord in string.gmatch(key, "-?%d+") do
-		local coord = tonumber(scoord)
-		if not coord then
-			error("failed to parse number " .. scoord)
-		end
-		table.insert(coords, coord)
-	end
-	local o = setmetatable({}, { __index = self })
-	o.x = coords[1]
-	o.y = coords[2]
-	o.z = coords[3]
-	return o
-end
 
 ---@class Cube
 ---@field active boolean
@@ -168,7 +179,7 @@ function Cube:new(coords, active)
 	else
 		o.active = active
 	end
-	o.coords = Coordinates:new(coords)
+	o.coords = coords
 	o.neighbours = {}
 	return o
 end
@@ -266,20 +277,6 @@ M.getCoordinateNeighbours = getCoordinateNeighbours
 local Space = {}
 M.Space = Space
 
----@class Space4D:Space
-local Space4D = utils.inheritsFrom(Space)
-M.Space4D = Space4D
-
----Creates a 4D space
----@param lines string[]
----@return Space4D
-function Space4D:new(lines)
-	local o = setmetatable({}, { __index = self })
-	o.cubes = initCubes(lines, true)
-	o:initNeighbours()
-	return o
-end
-
 ---Constructor for the initial space
 ---@param lines string[]
 ---@return Space
@@ -288,30 +285,6 @@ function Space:new(lines)
 	o.cubes = initCubes(lines)
 	o:initNeighbours()
 	return o
-end
-
-function Space4D:initNeighbours()
-	local newCubes = {}
-	for coordKey, cube in pairs(self.cubes) do
-		local coords = Coordinates4D:fromKey(coordKey)
-		local neighbours = getCoordinateNeighbours(coords)
-		for _, ncoords in ipairs(neighbours) do
-			if not self.cubes[ncoords:asKey()] then
-				local newCube = Cube:new(ncoords, false)
-				newCubes[ncoords:asKey()] = newCube
-			else
-				self.cubes[ncoords:asKey()]:addNeighbour(cube)
-			end
-		end
-	end
-	for key, cube in pairs(newCubes) do
-		self.cubes[key] = cube
-		for _, ncoords in ipairs(getCoordinateNeighbours(cube.coords)) do
-			if self.cubes[ncoords:asKey()] then
-				self.cubes[ncoords:asKey()]:addNeighbour(cube)
-			end
-		end
-	end
 end
 
 function Space:initNeighbours()
@@ -347,30 +320,6 @@ function Space:snapshot()
 	end
 	return states
 end
-
----Takes two states and determines if difference exists
----@param s1 {[string]: boolean}
----@param s2 {[string]: boolean}
----@return boolean
-local function stateDifference(s1, s2)
-	for k, v in pairs(s1) do
-		if s2[k] ~= v then
-			return true
-		end
-	end
-	return false
-end
-M.stateDifference = stateDifference
-
----@class CoordRange
----@field min integer
----@field max integer
-
----@class CoordinateRanges
----@field x CoordRange
----@field y CoordRange
----@field z CoordRange
----@field w CoordRange?
 
 ---Cycles through the states
 function Space:cycle()
@@ -495,8 +444,7 @@ end
 ---Gets the outer bounds of space under consideration
 ---@return CoordinateRanges
 function Space:getDimensions()
-	local key, firstcube = next(self.cubes)
-	print(lu.assertEquals)
+	local _, firstcube = next(self.cubes)
 	local maxs = firstcube.coords
 	local mins = firstcube.coords
 	for _, cube in pairs(self.cubes) do
@@ -599,6 +547,158 @@ function Space:extend(direction)
 	return newCubes
 end
 
+---@class Space4D:Space
+local Space4D = utils.inheritsFrom(Space)
+M.Space4D = Space4D
+
+---Creates a 4D space
+---@param lines string[]
+---@return Space4D
+function Space4D:new(lines)
+	local o = setmetatable({}, { __index = self })
+	o.cubes = initCubes(lines, true)
+	o:initNeighbours()
+	return o
+end
+
+---Extend the space dimensions on one axis
+---@param direction Direction
+---@return {[string]: Cube}
+function Space4D:extend(direction)
+	local boundary = self:getDimensions()
+	local addXPlane = function(newx)
+		local newCubes = {}
+		for y = boundary.y.min, boundary.y.max do
+			for z = boundary.z.min, boundary.z.max do
+				for w = boundary.w.min, boundary.w.max do
+					local coords = Coordinates4D:new { x = newx, y = y, z = z, w = w}
+					newCubes[coords:asKey()] = Cube:new(coords, false)
+				end
+			end
+		end
+		return newCubes
+	end
+	local addYPlane = function(newy)
+		local newCubes = {}
+		for x = boundary.x.min, boundary.x.max do
+			for z = boundary.z.min, boundary.z.max do
+				for w = boundary.w.min, boundary.w.max do
+					local coords = Coordinates4D:new { x = x, y = newy, z = z, w = w}
+					newCubes[coords:asKey()] = Cube:new(coords, false)
+				end
+			end
+		end
+		return newCubes
+	end
+	local addZPlane = function(newz)
+		local newCubes = {}
+		for x = boundary.x.min, boundary.x.max do
+			for y = boundary.y.min, boundary.y.max do
+				for w = boundary.w.min, boundary.w.max do
+					local coords = Coordinates4D:new { x = x, y = y, z = newz, w = w}
+					newCubes[coords:asKey()] = Cube:new(coords, false)
+				end
+			end
+		end
+		return newCubes
+	end
+	local addWPlane = function(neww)
+		local newCubes = {}
+		for x = boundary.x.min, boundary.x.max do
+			for y = boundary.y.min, boundary.y.max do
+				for z = boundary.z.min, boundary.z.max do
+					local coords = Coordinates4D:new {x=x,y=y,z=z,w=neww}
+					newCubes[coords:asKey()] = Cube:new(coords, false)
+				end
+			end
+		end
+		return newCubes
+	end
+
+	local newCubes = {}
+	if direction == Direction.posx then
+		local newx = boundary.x.max + 1
+		newCubes = addXPlane(newx)
+	elseif direction == Direction.negx then
+		local newx = boundary.x.min - 1
+		newCubes = addXPlane(newx)
+	elseif direction == Direction.posy then
+		local newy = boundary.y.max + 1
+		newCubes = addYPlane(newy)
+	elseif direction == Direction.negy then
+		local newy = boundary.y.min - 1
+		newCubes = addYPlane(newy)
+	elseif direction == Direction.posz then
+		local newz = boundary.z.max + 1
+		newCubes = addZPlane(newz)
+	elseif direction == Direction.negz then
+		local newz = boundary.z.min - 1
+		newCubes = addZPlane(newz)
+	elseif direction == Direction.posw then
+		local neww = boundary.w.max + 1
+		newCubes = addWPlane(neww)
+	elseif direction == Direction.negw then
+		local neww = boundary.w.min - 1
+		newCubes = addWPlane(neww)
+	end
+
+	--Add the new cubes to the space
+	for key, cube in pairs(newCubes) do
+		self.cubes[key] = cube
+	end
+
+	-- Setup the neighbour relationship
+	for _, cube in pairs(newCubes) do
+		local neighbours = getCoordinateNeighbours(cube.coords)
+		for _, ncoords in ipairs(neighbours) do
+			if self.cubes[ncoords:asKey()] then
+				self.cubes[ncoords:asKey()]:addNeighbour(cube)
+			end
+		end
+	end
+
+	-- Return the newcubes
+	return newCubes
+end
+---Initialize neighbours for a 4D space
+function Space4D:initNeighbours()
+	local newCubes = {}
+	for coordKey, cube in pairs(self.cubes) do
+		local coords = Coordinates4D:fromKey(coordKey)
+		local neighbours = getCoordinateNeighbours(coords)
+		for _, ncoords in ipairs(neighbours) do
+			if not self.cubes[ncoords:asKey()] then
+				local newCube = Cube:new(ncoords, false)
+				newCubes[ncoords:asKey()] = newCube
+			else
+				self.cubes[ncoords:asKey()]:addNeighbour(cube)
+			end
+		end
+	end
+	for key, cube in pairs(newCubes) do
+		self.cubes[key] = cube
+		for _, ncoords in ipairs(getCoordinateNeighbours(cube.coords)) do
+			if self.cubes[ncoords:asKey()] then
+				self.cubes[ncoords:asKey()]:addNeighbour(cube)
+			end
+		end
+	end
+end
+
+---Takes two states and determines if difference exists
+---@param s1 {[string]: boolean}
+---@param s2 {[string]: boolean}
+---@return boolean
+local function stateDifference(s1, s2)
+	for k, v in pairs(s1) do
+		if s2[k] ~= v then
+			return true
+		end
+	end
+	return false
+end
+M.stateDifference = stateDifference
+
 ---Performs all necessary operations for part1
 ---@param filename string
 ---@return integer
@@ -611,5 +711,16 @@ local function part1(filename)
 	return space:activeCount()
 end
 M.part1 = part1
+
+local function part2(filename)
+	local lines = utils.ingest(filename)
+	local space = Space4D:new(lines)
+	for _ = 1,6 do
+		space:cycle()
+	end
+	return space:activeCount()
+end
+M.part2 = part2
+
 
 return M
